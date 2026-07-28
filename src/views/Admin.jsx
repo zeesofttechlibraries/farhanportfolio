@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
-  ArrowUpRight, Check, Image as ImageIcon, LogOut, Mail, Pencil, Plus, Trash2, Upload
+  ArrowUpRight, Check, Image as ImageIcon, LogOut, Mail, Pencil, Plus, Trash2, Upload,
+  LayoutDashboard, FolderKanban, Sparkles, Calendar, ExternalLink, Menu, X
 } from "lucide-react";
 import {
   addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query,
@@ -39,6 +40,7 @@ export default function Admin() {
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState("dashboard"); // Default is dashboard
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Spotlight States
   const [spotlightDraft, setSpotlightDraft] = useState({
@@ -235,171 +237,213 @@ export default function Admin() {
   }
 
   return (
-    <main className="admin">
-      <header>
-        <Brand />
-        <div>
-          <span>{user.email}</span>
-          <a href="/" target="_blank" rel="noreferrer">View site <Arrow /></a>
-          <button onClick={() => signOut(auth)}><LogOut size={16} /> Sign out</button>
-        </div>
-      </header>
+    <div className="admin-shell">
+      <button className="admin-mobile-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+        {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
       
-      <section className="admin-title">
-        <div>
-          <p className="eyebrow">First Cut studio</p>
-          <h1>PORTFOLIO<br />MANAGER</h1>
+      <aside className={`admin-sidebar ${mobileMenuOpen ? "admin-sidebar--open" : ""}`}>
+        <div className="sidebar-brand">
+          <Brand />
+          <span className="sidebar-subtitle">Studio Manager</span>
         </div>
-        <nav className="admin-nav-tabs">
-          <button className={tab === "dashboard" ? "active" : ""} onClick={() => setTab("dashboard")}>Dashboard</button>
-          <button className={tab === "projects" ? "active" : ""} onClick={() => setTab("projects")}>Projects {projects.length}</button>
-          <button className={tab === "spotlight" ? "active" : ""} onClick={() => setTab("spotlight")}>Spotlight Slider</button>
-          <button className={tab === "inquiries" ? "active" : ""} onClick={() => setTab("inquiries")}>Orders {inquiries.length}</button>
-          <button className={tab === "meetings" ? "active" : ""} onClick={() => setTab("meetings")}>Meetings {meetings.length}</button>
+        
+        <nav className="admin-sidebar-nav">
+          <button className={tab === "dashboard" ? "active" : ""} onClick={() => { setTab("dashboard"); setMobileMenuOpen(false); }}>
+            <LayoutDashboard size={18} /> Dashboard
+          </button>
+          <button className={tab === "projects" ? "active" : ""} onClick={() => { setTab("projects"); setMobileMenuOpen(false); }}>
+            <FolderKanban size={18} /> Projects <span className="nav-badge">{projects.length}</span>
+          </button>
+          <button className={tab === "spotlight" ? "active" : ""} onClick={() => { setTab("spotlight"); setMobileMenuOpen(false); }}>
+            <Sparkles size={18} /> Spotlight
+          </button>
+          <button className={tab === "inquiries" ? "active" : ""} onClick={() => { setTab("inquiries"); setMobileMenuOpen(false); }}>
+            <Mail size={18} /> Orders <span className="nav-badge">{inquiries.length}</span>
+          </button>
+          <button className={tab === "meetings" ? "active" : ""} onClick={() => { setTab("meetings"); setMobileMenuOpen(false); }}>
+            <Calendar size={18} /> Meetings <span className="nav-badge">{meetings.length}</span>
+          </button>
         </nav>
-      </section>
-
-      {/* DASHBOARD TAB WITH PREMIUM GRAPHS */}
-      {tab === "dashboard" && (
-        <DashboardView 
-          projects={projects} 
-          inquiries={inquiries} 
-          meetings={meetings} 
-          setTab={setTab} 
-        />
-      )}
-
-      {/* SPOTLIGHT TAB FOR MANAGING THE BEFORE/AFTER SLIDER */}
-      {tab === "spotlight" && (
-        <section className="spotlight-manager">
-          <div className="editor">
-            <div className="editor-head">
-              <div>
-                <p className="eyebrow">Interactive Spotlight</p>
-                <h2>RAW VS GRADED EDIT</h2>
-              </div>
-            </div>
-            
-            <form onSubmit={saveSpotlight} className="form-grid">
-              {/* Raw / Before Media */}
-              <div className="upload-box">
-                <h3>1. RAW MEDIA (BEFORE)</h3>
-                <label className="upload">
-                  <Upload />
-                  <b>{spotlightUploading.before ? "Uploading..." : spotlightDraft.beforeUrl ? "Replace Raw Media" : "Upload Raw Media"}</b>
-                  <span>JPG, PNG, WebP, MP4, MOV</span>
-                  <input type="file" accept="image/*,video/*" onChange={e => uploadSpotlight(e, "before")} />
-                </label>
-                {spotlightDraft.beforeUrl && (
-                  <div className="preview">
-                    {spotlightDraft.beforeType === "video" ? (
-                      <video src={spotlightDraft.beforeUrl} controls muted />
-                    ) : (
-                      <img src={spotlightDraft.beforeUrl} alt="Raw Preview" />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Graded / After Media */}
-              <div className="upload-box">
-                <h3>2. GRADED MEDIA (AFTER)</h3>
-                <label className="upload">
-                  <Upload />
-                  <b>{spotlightUploading.after ? "Uploading..." : spotlightDraft.afterUrl ? "Replace Graded Media" : "Upload Graded Media"}</b>
-                  <span>JPG, PNG, WebP, MP4, MOV</span>
-                  <input type="file" accept="image/*,video/*" onChange={e => uploadSpotlight(e, "after")} />
-                </label>
-                {spotlightDraft.afterUrl && (
-                  <div className="preview">
-                    {spotlightDraft.afterType === "video" ? (
-                      <video src={spotlightDraft.afterUrl} controls muted />
-                    ) : (
-                      <img src={spotlightDraft.afterUrl} alt="Graded Preview" />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="full live-preview-box">
-                <h3>LIVE PREVIEW</h3>
-                <div className="spotlight-slider-wrapper">
-                  <BeforeAfterSlider 
-                    beforeUrl={spotlightDraft.beforeUrl}
-                    beforeType={spotlightDraft.beforeType}
-                    afterUrl={spotlightDraft.afterUrl}
-                    afterType={spotlightDraft.afterType}
-                  />
+        
+        <div className="admin-sidebar-bottom">
+          <a href="/" target="_blank" rel="noreferrer">
+            <ExternalLink size={16} /> View site
+          </a>
+          <button onClick={() => signOut(auth)}>
+            <LogOut size={16} /> Sign out
+          </button>
+          <small className="user-email">{user.email}</small>
+        </div>
+      </aside>
+      
+      <main className="admin-main">
+        <header className="admin-main-header">
+          <div>
+            <span className="eyebrow">First Cut Studio</span>
+            <h1>{tab === "dashboard" ? "Good morning, Admin." : tab.toUpperCase()}</h1>
+            <p>
+              {tab === "dashboard" && "Manage the content that makes your video editing portfolio stand out."}
+              {tab === "projects" && "Publish, organize, and edit your portfolio work."}
+              {tab === "spotlight" && "Configure raw versus color graded video/image comparisons."}
+              {tab === "inquiries" && "Review client project inquiries and orders."}
+              {tab === "meetings" && "Manage booked client scheduling and calls."}
+            </p>
+          </div>
+          {tab === "projects" && !editing && (
+            <button className="button primary" onClick={() => {
+              const element = document.querySelector(".editor");
+              if (element) {
+                scrollTo({ top: element.offsetTop - 40, behavior: "smooth" });
+              }
+            }}>
+              <Plus size={16} /> New project
+            </button>
+          )}
+        </header>
+        
+        {/* DASHBOARD TAB WITH PREMIUM GRAPHS */}
+        {tab === "dashboard" && (
+          <DashboardView 
+            projects={projects} 
+            inquiries={inquiries} 
+            meetings={meetings} 
+            setTab={setTab} 
+          />
+        )}
+        
+        {/* SPOTLIGHT TAB FOR MANAGING THE BEFORE/AFTER SLIDER */}
+        {tab === "spotlight" && (
+          <section className="spotlight-manager">
+            <div className="editor">
+              <div className="editor-head">
+                <div>
+                  <p className="eyebrow">Interactive Spotlight</p>
+                  <h2>RAW VS GRADED EDIT</h2>
                 </div>
               </div>
-
-              <div className="editor-foot full">
-                <button className="button primary" type="submit">Save Spotlight Configuration</button>
-                <span>{spotlightMessage}</span>
+              
+              <form onSubmit={saveSpotlight} className="form-grid">
+                {/* Raw / Before Media */}
+                <div className="upload-box">
+                  <h3>1. RAW MEDIA (BEFORE)</h3>
+                  <label className="upload">
+                    <Upload />
+                    <b>{spotlightUploading.before ? "Uploading..." : spotlightDraft.beforeUrl ? "Replace Raw Media" : "Upload Raw Media"}</b>
+                    <span>JPG, PNG, WebP, MP4, MOV</span>
+                    <input type="file" accept="image/*,video/*" onChange={e => uploadSpotlight(e, "before")} />
+                  </label>
+                  {spotlightDraft.beforeUrl && (
+                    <div className="preview">
+                      {spotlightDraft.beforeType === "video" ? (
+                        <video src={spotlightDraft.beforeUrl} controls muted />
+                      ) : (
+                        <img src={spotlightDraft.beforeUrl} alt="Raw Preview" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Graded / After Media */}
+                <div className="upload-box">
+                  <h3>2. GRADED MEDIA (AFTER)</h3>
+                  <label className="upload">
+                    <Upload />
+                    <b>{spotlightUploading.after ? "Uploading..." : spotlightDraft.afterUrl ? "Replace Graded Media" : "Upload Graded Media"}</b>
+                    <span>JPG, PNG, WebP, MP4, MOV</span>
+                    <input type="file" accept="image/*,video/*" onChange={e => uploadSpotlight(e, "after")} />
+                  </label>
+                  {spotlightDraft.afterUrl && (
+                    <div className="preview">
+                      {spotlightDraft.afterType === "video" ? (
+                        <video src={spotlightDraft.afterUrl} controls muted />
+                      ) : (
+                        <img src={spotlightDraft.afterUrl} alt="Graded Preview" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="full live-preview-box">
+                  <h3>LIVE PREVIEW</h3>
+                  <div className="spotlight-slider-wrapper">
+                    <BeforeAfterSlider 
+                      beforeUrl={spotlightDraft.beforeUrl}
+                      beforeType={spotlightDraft.beforeType}
+                      afterUrl={spotlightDraft.afterUrl}
+                      afterType={spotlightDraft.afterType}
+                    />
+                  </div>
+                </div>
+                
+                <div className="editor-foot full">
+                  <button className="button primary" type="submit">Save Spotlight Configuration</button>
+                  <span>{spotlightMessage}</span>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
+        
+        {tab === "projects" && (
+          <>
+            <form className="editor" onSubmit={save}>
+              <div className="editor-head">
+                <div>
+                  <p className="eyebrow">{editing ? "Editing project" : "New project"}</p>
+                  <h2>{editing ? draft.title : "ADD PORTFOLIO WORK"}</h2>
+                </div>
+                {editing && (
+                  <button type="button" onClick={() => { setEditing(null); setDraft(emptyProject); }}>Cancel edit</button>
+                )}
+              </div>
+              
+              <div className="form-grid">
+                <label>Title<input value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} required /></label>
+                <label>Category
+                  <select value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })}>
+                    {services.map(s => <option key={s[1]}>{s[1]}</option>)}
+                  </select>
+                </label>
+                <label>Year<input value={draft.year} onChange={e => setDraft({ ...draft, year: e.target.value })} required /></label>
+                <label>Display order<input type="number" min="1" value={draft.order} onChange={e => setDraft({ ...draft, order: Number(e.target.value) })} /></label>
+                <label className="full">Description<textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} minLength={20} required /></label>
+                
+                <label className="upload full">
+                  <Upload />
+                  <b>{uploading ? "Uploading…" : draft.mediaUrl ? "Replace image or video" : "Upload project image or video"}</b>
+                  <span>JPG, PNG, WebP, MP4 or MOV</span>
+                  <input type="file" accept="image/*,video/*" onChange={upload} />
+                </label>
+                
+                {draft.mediaUrl && (
+                  <div className="preview full">
+                    {draft.mediaType === "video" ? <video src={draft.mediaUrl} controls /> : <img src={draft.mediaUrl} alt="" />}
+                  </div>
+                )}
+                
+                <label className="check">
+                  <input type="checkbox" checked={draft.featured} onChange={e => setDraft({ ...draft, featured: e.target.checked })} /> Featured project
+                </label>
+                <label className="check">
+                  <input type="checkbox" checked={draft.published} onChange={e => setDraft({ ...draft, published: e.target.checked })} /> Published
+                </label>
+              </div>
+              
+              <div className="editor-foot">
+                <button className="button primary"><Plus size={17} />{editing ? "Update project" : "Publish project"}</button>
+                <span>{message}</span>
               </div>
             </form>
-          </div>
-        </section>
-      )}
-
-      {tab === "projects" && (
-        <>
-          <form className="editor" onSubmit={save}>
-            <div className="editor-head">
-              <div>
-                <p className="eyebrow">{editing ? "Editing project" : "New project"}</p>
-                <h2>{editing ? draft.title : "ADD PORTFOLIO WORK"}</h2>
-              </div>
-              {editing && (
-                <button type="button" onClick={() => { setEditing(null); setDraft(emptyProject); }}>Cancel edit</button>
-              )}
-            </div>
             
-            <div className="form-grid">
-              <label>Title<input value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} required /></label>
-              <label>Category
-                <select value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })}>
-                  {services.map(s => <option key={s[1]}>{s[1]}</option>)}
-                </select>
-              </label>
-              <label>Year<input value={draft.year} onChange={e => setDraft({ ...draft, year: e.target.value })} required /></label>
-              <label>Display order<input type="number" min="1" value={draft.order} onChange={e => setDraft({ ...draft, order: Number(e.target.value) })} /></label>
-              <label className="full">Description<textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} minLength={20} required /></label>
-              
-              <label className="upload full">
-                <Upload />
-                <b>{uploading ? "Uploading…" : draft.mediaUrl ? "Replace image or video" : "Upload project image or video"}</b>
-                <span>JPG, PNG, WebP, MP4 or MOV</span>
-                <input type="file" accept="image/*,video/*" onChange={upload} />
-              </label>
-              
-              {draft.mediaUrl && (
-                <div className="preview full">
-                  {draft.mediaType === "video" ? <video src={draft.mediaUrl} controls /> : <img src={draft.mediaUrl} alt="" />}
-                </div>
-              )}
-              
-              <label className="check">
-                <input type="checkbox" checked={draft.featured} onChange={e => setDraft({ ...draft, featured: e.target.checked })} /> Featured project
-              </label>
-              <label className="check">
-                <input type="checkbox" checked={draft.published} onChange={e => setDraft({ ...draft, published: e.target.checked })} /> Published
-              </label>
-            </div>
-            
-            <div className="editor-foot">
-              <button className="button primary"><Plus size={17} />{editing ? "Update project" : "Publish project"}</button>
-              <span>{message}</span>
-            </div>
-          </form>
-          
-          <AdminProjects items={projects} edit={edit} remove={remove} />
-        </>
-      )}
-
-      {tab === "inquiries" && <LeadList items={inquiries} type="inquiries" />}
-      {tab === "meetings" && <LeadList items={meetings} type="meetings" />}
-    </main>
+            <AdminProjects items={projects} edit={edit} remove={remove} />
+          </>
+        )}
+        
+        {tab === "inquiries" && <LeadList items={inquiries} type="inquiries" />}
+        {tab === "meetings" && <LeadList items={meetings} type="meetings" />}
+      </main>
+    </div>
   );
 }
 
