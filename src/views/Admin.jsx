@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
   ArrowUpRight, Check, Image as ImageIcon, LogOut, Mail, Pencil, Plus, Trash2, Upload,
-  LayoutDashboard, FolderKanban, Sparkles, Calendar, ExternalLink, Menu, X
+  LayoutDashboard, FolderKanban, Sparkles, Calendar, ExternalLink, Menu, X, User
 } from "lucide-react";
 import {
   addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query,
@@ -52,6 +52,14 @@ export default function Admin() {
   const [spotlightUploading, setSpotlightUploading] = useState({ before: false, after: false });
   const [spotlightMessage, setSpotlightMessage] = useState("");
 
+  // Profile Picture States
+  const [profileDraft, setProfileDraft] = useState({
+    profileUrl: "",
+    shape: "wavy"
+  });
+  const [profileUploading, setProfileUploading] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+
   useEffect(() => {
     if (!auth) {
       setLoading(false);
@@ -77,13 +85,72 @@ export default function Admin() {
       }
     });
 
+    // Load profile settings
+    const profileRef = doc(db, "settings", "profile");
+    const unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfileDraft(docSnap.data());
+      }
+    });
+
     return () => {
       a();
       b();
       c();
       unsubscribeSpotlight();
+      unsubscribeProfile();
     };
   }, [user]);
+
+  async function uploadProfile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const cloud = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloud || !preset) {
+      setProfileMessage("Add Cloudinary variables in .env or Netlify first.");
+      return;
+    }
+    setProfileUploading(true);
+    setProfileMessage("Uploading profile image…");
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", preset);
+      data.append("folder", "first-cut/profile");
+      const r = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: data });
+      if (!r.ok) throw 0;
+      const result = await r.json();
+      setProfileDraft(prev => ({ ...prev, profileUrl: result.secure_url }));
+      setProfileMessage("Profile image upload complete.");
+    } catch {
+      setProfileMessage("Upload failed. Check your Cloudinary preset.");
+    } finally {
+      setProfileUploading(false);
+    }
+  }
+
+  async function saveProfile(e) {
+    e.preventDefault();
+    setProfileMessage("Saving profile settings…");
+    try {
+      await setDoc(doc(db, "settings", "profile"), profileDraft);
+      setProfileMessage("Profile settings saved successfully!");
+    } catch {
+      setProfileMessage("Could not save settings. Verify Firestore security rules.");
+    }
+  }
+
+  async function clearProfile() {
+    setProfileMessage("Removing profile picture…");
+    try {
+      await setDoc(doc(db, "settings", "profile"), { profileUrl: "", shape: profileDraft.shape || "wavy" });
+      setProfileDraft(prev => ({ ...prev, profileUrl: "" }));
+      setProfileMessage("Profile picture removed. Hero section returned to silhouette.");
+    } catch {
+      setProfileMessage("Could not clear profile picture.");
+    }
+  }
 
   async function login(e) {
     e.preventDefault();
@@ -258,6 +325,9 @@ export default function Admin() {
           <button className={tab === "spotlight" ? "active" : ""} onClick={() => { setTab("spotlight"); setMobileMenuOpen(false); }}>
             <Sparkles size={18} /> Spotlight
           </button>
+          <button className={tab === "profile" ? "active" : ""} onClick={() => { setTab("profile"); setMobileMenuOpen(false); }}>
+            <User size={18} /> Hero Profile
+          </button>
           <button className={tab === "inquiries" ? "active" : ""} onClick={() => { setTab("inquiries"); setMobileMenuOpen(false); }}>
             <Mail size={18} /> Orders <span className="nav-badge">{inquiries.length}</span>
           </button>
@@ -281,11 +351,12 @@ export default function Admin() {
         <header className="admin-main-header">
           <div>
             <span className="eyebrow">First Cut Studio</span>
-            <h1>{tab === "dashboard" ? "Good morning, Admin." : tab.toUpperCase()}</h1>
+            <h1>{tab === "dashboard" ? "Good morning, Admin." : tab === "profile" ? "HERO PROFILE PICTURE" : tab.toUpperCase()}</h1>
             <p>
               {tab === "dashboard" && "Manage the content that makes your video editing portfolio stand out."}
               {tab === "projects" && "Publish, organize, and edit your portfolio work."}
               {tab === "spotlight" && "Configure raw versus color graded video/image comparisons."}
+              {tab === "profile" && "Upload and customize your hero section profile picture shape (Wavy Organic or Oval Portal)."}
               {tab === "inquiries" && "Review client project inquiries and orders."}
               {tab === "meetings" && "Manage booked client scheduling and calls."}
             </p>
@@ -379,6 +450,95 @@ export default function Admin() {
                 <div className="editor-foot full">
                   <button className="button primary" type="submit">Save Spotlight Configuration</button>
                   <span>{spotlightMessage}</span>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {/* HERO PROFILE PICTURE TAB */}
+        {tab === "profile" && (
+          <section className="profile-manager">
+            <div className="editor">
+              <div className="editor-head">
+                <div>
+                  <p className="eyebrow">Top Hero Visual</p>
+                  <h2>PROFILE PICTURE & CLIPPING SHAPE</h2>
+                </div>
+              </div>
+
+              <form onSubmit={saveProfile} className="form-grid">
+                <div className="upload-box full">
+                  <h3>1. PROFILE PICTURE IMAGE</h3>
+                  <label className="upload">
+                    <Upload />
+                    <b>{profileUploading ? "Uploading..." : profileDraft.profileUrl ? "Replace Profile Image" : "Upload Profile Image"}</b>
+                    <span>JPG, PNG, WebP</span>
+                    <input type="file" accept="image/*" onChange={uploadProfile} />
+                  </label>
+                  
+                  <label style={{ marginTop: "1rem" }}>
+                    Image Direct URL (optional)
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={profileDraft.profileUrl || ""}
+                      onChange={e => setProfileDraft({ ...profileDraft, profileUrl: e.target.value })}
+                    />
+                  </label>
+                </div>
+
+                <div className="upload-box full">
+                  <h3>2. CLIPPING SHAPE STYLE</h3>
+                  <div className="shape-picker-grid">
+                    <button
+                      type="button"
+                      className={`shape-option-btn ${profileDraft.shape === "wavy" || !profileDraft.shape ? "active" : ""}`}
+                      onClick={() => setProfileDraft({ ...profileDraft, shape: "wavy" })}
+                    >
+                      <div className="shape-preview-icon wavy-shape-icon" />
+                      <span>Wavy Organic Blob</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`shape-option-btn ${profileDraft.shape === "oval" ? "active" : ""}`}
+                      onClick={() => setProfileDraft({ ...profileDraft, shape: "oval" })}
+                    >
+                      <div className="shape-preview-icon oval-shape-icon" />
+                      <span>Oval Portal</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="full live-preview-box">
+                  <h3>LIVE HERO PREVIEW</h3>
+                  <div className="admin-profile-preview-stage">
+                    {profileDraft.profileUrl ? (
+                      <div className={`hero-profile-wrapper hero-profile--${profileDraft.shape || "wavy"}`}>
+                        <div className="hero-profile-frame">
+                          <img src={profileDraft.profileUrl} alt="Preview" />
+                        </div>
+                        <div className="hero-profile-glow" />
+                        <div className="hero-profile-ring" />
+                      </div>
+                    ) : (
+                      <div className="profile-empty-preview">
+                        <User size={48} />
+                        <p>No profile picture added. The hero section will display the editor silhouette fallback.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="editor-foot full" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <button className="button primary" type="submit">Save Profile Settings</button>
+                  {profileDraft.profileUrl && (
+                    <button className="button secondary danger" type="button" onClick={clearProfile}>
+                      Remove Profile Picture
+                    </button>
+                  )}
+                  <span style={{ marginLeft: "auto" }}>{profileMessage}</span>
                 </div>
               </form>
             </div>

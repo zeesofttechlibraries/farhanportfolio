@@ -75,6 +75,10 @@ export default function Portfolio() {
     afterUrl: "",
     afterType: "image"
   });
+  const [profile, setProfile] = useState({
+    profileUrl: "",
+    shape: "wavy"
+  });
 
   useEffect(() => {
     if (!db) return;
@@ -92,9 +96,18 @@ export default function Portfolio() {
       }
     }, () => {});
 
+    // Listen for profile picture settings
+    const profileRef = doc(db, "settings", "profile");
+    const unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile(docSnap.data());
+      }
+    }, () => {});
+
     return () => {
       unsubscribeProjects();
       unsubscribeSpotlight();
+      unsubscribeProfile();
     };
   }, []);
 
@@ -197,10 +210,20 @@ export default function Portfolio() {
           </div>
         </div>
         <div className="hero-visual">
-          <div className="editor-silhouette">
-            <div className="head" />
-            <div className="body" />
-          </div>
+          {profile.profileUrl ? (
+            <div className={`hero-profile-wrapper hero-profile--${profile.shape || "wavy"}`}>
+              <div className="hero-profile-frame">
+                <img src={profile.profileUrl} alt="Mohammad Farhan" />
+              </div>
+              <div className="hero-profile-glow" />
+              <div className="hero-profile-ring" />
+            </div>
+          ) : (
+            <div className="editor-silhouette">
+              <div className="head" />
+              <div className="body" />
+            </div>
+          )}
           <div className="screen screen-one">
             <div className="screen-frame" />
             <div className="timeline-lines" />
