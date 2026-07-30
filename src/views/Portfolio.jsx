@@ -6,6 +6,7 @@ import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, where } fr
 import { db } from "../firebase";
 import { demoProjects, services } from "../constants";
 import Modal from "../components/Modal";
+import ReelModal from "../components/ReelModal";
 import LeadForm from "../components/LeadForm";
 import MeetingForm from "../components/MeetingForm";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
@@ -101,8 +102,21 @@ export default function Portfolio() {
     document.body.style.overflow = (active || formOpen || meetingOpen) ? "hidden" : "";
   }, [active, formOpen, meetingOpen]);
 
+  const [verticalVideoIds, setVerticalVideoIds] = useState({});
+
+  const isReelProject = (p) => {
+    if (!p) return false;
+    if (p.isReel) return true;
+    if (verticalVideoIds[p.id]) return true;
+    if (p.mediaType === "video" && p.category && (p.category.toLowerCase().includes("reel") || p.category.toLowerCase().includes("short-form"))) {
+      return true;
+    }
+    return false;
+  };
+
   const categories = useMemo(() => ["All", ...new Set(projects.map(p => p.category))], [projects]);
   const visible = filter === "All" ? projects : projects.filter(p => p.category === filter);
+  const reelProjects = useMemo(() => projects.filter(p => isReelProject(p)), [projects, verticalVideoIds]);
 
   function openOrder(project = null) {
     setActive(project);
@@ -228,31 +242,50 @@ export default function Portfolio() {
         </div>
 
         <div className="project-grid">
-          {visible.map((p, i) => (
-            <article className={`project-card ${i === 0 ? "wide" : ""}`} key={p.id}>
-              <button className="project-media" onClick={() => setActive(p)}>
-                {p.mediaUrl ? (
-                  p.mediaType === "video" ? (
-                    <video src={p.mediaUrl} muted loop autoPlay playsInline />
+          {visible.map((p, i) => {
+            const isReel = isReelProject(p);
+            return (
+              <article className={`project-card ${i === 0 ? "wide" : ""} ${isReel ? "reel-project-card" : ""}`} key={p.id}>
+                <button className="project-media" onClick={() => setActive(p)}>
+                  {isReel && (
+                    <span className="reel-badge-pill">
+                      <Film size={12} /> REEL
+                    </span>
+                  )}
+                  {p.mediaUrl ? (
+                    p.mediaType === "video" ? (
+                      <video
+                        src={p.mediaUrl}
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        onLoadedMetadata={(e) => {
+                          if (e.target.videoHeight > e.target.videoWidth) {
+                            setVerticalVideoIds(prev => ({ ...prev, [p.id]: true }));
+                          }
+                        }}
+                      />
+                    ) : (
+                      <img src={p.mediaUrl} alt="" />
+                    )
                   ) : (
-                    <img src={p.mediaUrl} alt="" />
-                  )
-                ) : (
-                  <DemoArt project={p} index={i} />
-                )}
-                <span className="project-open">View <Arrow /></span>
-              </button>
-              <div className="project-info">
-                <div>
-                  <p>{p.category} / {p.year}</p>
-                  <h3>{p.title}</h3>
-                </div>
-                <button onClick={() => openOrder(p)}>
-                  Start similar <Arrow />
+                    <DemoArt project={p} index={i} />
+                  )}
+                  <span className="project-open">{isReel ? "Play Reel" : "View"} <Arrow /></span>
                 </button>
-              </div>
-            </article>
-          ))}
+                <div className="project-info">
+                  <div>
+                    <p>{p.category} / {p.year}</p>
+                    <h3>{p.title}</h3>
+                  </div>
+                  <button onClick={() => openOrder(p)}>
+                    Start similar <Arrow />
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -333,15 +366,25 @@ export default function Portfolio() {
       </footer>
 
       {active && !formOpen && (
-        <Modal close={() => setActive(null)} wide>
-          <ProjectMedia project={active} />
-          <p className="eyebrow">{active.category} / {active.year}</p>
-          <h2>{active.title}</h2>
-          <p>{active.description}</p>
-          <button className="button primary" onClick={() => setFormOpen(true)}>
-            Start a similar project <Arrow />
-          </button>
-        </Modal>
+        isReelProject(active) ? (
+          <ReelModal
+            project={active}
+            reelProjects={reelProjects.length > 0 ? reelProjects : [active]}
+            onClose={() => setActive(null)}
+            onSelectProject={(proj) => setActive(proj)}
+            onStartOrder={(proj) => openOrder(proj)}
+          />
+        ) : (
+          <Modal close={() => setActive(null)} wide>
+            <ProjectMedia project={active} />
+            <p className="eyebrow">{active.category} / {active.year}</p>
+            <h2>{active.title}</h2>
+            <p>{active.description}</p>
+            <button className="button primary" onClick={() => setFormOpen(true)}>
+              Start a similar project <Arrow />
+            </button>
+          </Modal>
+        )
       )}
       
       {formOpen && (

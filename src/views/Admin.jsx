@@ -14,7 +14,7 @@ import BeforeAfterSlider from "../components/BeforeAfterSlider";
 
 const emptyProject = {
   title: "", category: "Short-form editing", year: String(new Date().getFullYear()),
-  description: "", mediaType: "image", mediaUrl: "", featured: false, published: true, order: 1, accent: "#ff6038"
+  description: "", mediaType: "image", mediaUrl: "", featured: false, published: true, isReel: false, order: 1, accent: "#ff6038"
 };
 
 function Brand() {
@@ -422,6 +422,9 @@ export default function Admin() {
                   </div>
                 )}
                 
+                <label className="check">
+                  <input type="checkbox" checked={draft.isReel || false} onChange={e => setDraft({ ...draft, isReel: e.target.checked })} /> Reel / Portrait Video (9:16 Vertical View)
+                </label>
                 <label className="check">
                   <input type="checkbox" checked={draft.featured} onChange={e => setDraft({ ...draft, featured: e.target.checked })} /> Featured project
                 </label>
