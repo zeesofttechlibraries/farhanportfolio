@@ -130,25 +130,42 @@ export default function Admin() {
     }
   }
 
+  // Load local fallback initially
+  useEffect(() => {
+    const local = localStorage.getItem("firstcut_profile");
+    if (local) {
+      try { setProfileDraft(JSON.parse(local)); } catch {}
+    }
+  }, []);
+
   async function saveProfile(e) {
     e.preventDefault();
     setProfileMessage("Saving profile settings…");
+    localStorage.setItem("firstcut_profile", JSON.stringify(profileDraft));
     try {
-      await setDoc(doc(db, "settings", "profile"), profileDraft);
+      if (db) {
+        await setDoc(doc(db, "settings", "profile"), profileDraft);
+      }
       setProfileMessage("Profile settings saved successfully!");
-    } catch {
-      setProfileMessage("Could not save settings. Verify Firestore security rules.");
+    } catch (err) {
+      console.warn("Firestore profile save warning:", err);
+      setProfileMessage("Profile saved locally! Check firestore.rules for settings collection.");
     }
   }
 
   async function clearProfile() {
     setProfileMessage("Removing profile picture…");
+    const empty = { profileUrl: "", shape: profileDraft.shape || "wavy" };
+    localStorage.setItem("firstcut_profile", JSON.stringify(empty));
+    setProfileDraft(empty);
     try {
-      await setDoc(doc(db, "settings", "profile"), { profileUrl: "", shape: profileDraft.shape || "wavy" });
-      setProfileDraft(prev => ({ ...prev, profileUrl: "" }));
-      setProfileMessage("Profile picture removed. Hero section returned to silhouette.");
-    } catch {
-      setProfileMessage("Could not clear profile picture.");
+      if (db) {
+        await setDoc(doc(db, "settings", "profile"), empty);
+      }
+      setProfileMessage("Profile picture removed.");
+    } catch (err) {
+      console.warn("Firestore profile clear warning:", err);
+      setProfileMessage("Profile picture removed locally.");
     }
   }
 

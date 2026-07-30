@@ -75,9 +75,12 @@ export default function Portfolio() {
     afterUrl: "",
     afterType: "image"
   });
-  const [profile, setProfile] = useState({
-    profileUrl: "",
-    shape: "wavy"
+  const [profile, setProfile] = useState(() => {
+    const local = localStorage.getItem("firstcut_profile");
+    if (local) {
+      try { return JSON.parse(local); } catch {}
+    }
+    return { profileUrl: "", shape: "wavy" };
   });
 
   useEffect(() => {
@@ -100,7 +103,9 @@ export default function Portfolio() {
     const profileRef = doc(db, "settings", "profile");
     const unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
       if (docSnap.exists()) {
-        setProfile(docSnap.data());
+        const data = docSnap.data();
+        setProfile(data);
+        localStorage.setItem("firstcut_profile", JSON.stringify(data));
       }
     }, () => {});
 
