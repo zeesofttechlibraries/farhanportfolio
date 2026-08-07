@@ -11,6 +11,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebas
 import { auth, db, firebaseReady } from "../firebase";
 import { services } from "../constants";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import TypingText from "../components/TypingText";
 
 const emptyProject = {
   title: "", category: "Short-form editing", year: String(new Date().getFullYear()),
@@ -52,10 +53,15 @@ export default function Admin() {
   const [spotlightUploading, setSpotlightUploading] = useState({ before: false, after: false });
   const [spotlightMessage, setSpotlightMessage] = useState("");
 
-  // Profile Picture States
+  // Hero Intro & Profile Picture States
   const [profileDraft, setProfileDraft] = useState({
+    showTopIntro: true,
+    name: "Mohammad Farhan",
+    roles: "Video Editor, Motion Designer, Visual Storyteller, Graphic Designer",
+    bio: "Mohammad Farhan turns raw footage and bold ideas into scroll-stopping films, motion, and graphic design.",
+    eyebrow: "Video Editor · Graphic Designer",
     profileUrl: "",
-    shape: "wavy"
+    shape: "oval"
   });
   const [profileUploading, setProfileUploading] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
@@ -85,11 +91,12 @@ export default function Admin() {
       }
     });
 
-    // Load profile settings
+    // Load profile & hero settings
     const profileRef = doc(db, "settings", "profile");
     const unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
       if (docSnap.exists()) {
-        setProfileDraft(docSnap.data());
+        const data = docSnap.data();
+        setProfileDraft(prev => ({ ...prev, ...data }));
       }
     });
 
@@ -134,7 +141,10 @@ export default function Admin() {
   useEffect(() => {
     const local = localStorage.getItem("firstcut_profile");
     if (local) {
-      try { setProfileDraft(JSON.parse(local)); } catch {}
+      try {
+        const parsed = JSON.parse(local);
+        setProfileDraft(prev => ({ ...prev, ...parsed }));
+      } catch {}
     }
   }, []);
 
@@ -473,27 +483,97 @@ export default function Admin() {
           </section>
         )}
 
-        {/* HERO PROFILE PICTURE TAB */}
+        {/* TOP HERO INTRO & PROFILE PICTURE TAB */}
         {tab === "profile" && (
           <section className="profile-manager">
             <div className="editor">
               <div className="editor-head">
                 <div>
-                  <p className="eyebrow">Top Hero Visual</p>
-                  <h2>PROFILE PICTURE & CLIPPING SHAPE</h2>
+                  <p className="eyebrow">Top Hero & Intro Control</p>
+                  <h2>INTRO SECTION, NAME & OVAL PROFILE</h2>
                 </div>
               </div>
 
               <form onSubmit={saveProfile} className="form-grid">
+                {/* 1. VISIBILITY TOGGLE */}
+                <div className="upload-box full" style={{ borderStyle: "solid", borderColor: profileDraft.showTopIntro !== false ? "var(--orange)" : "var(--line)" }}>
+                  <h3>1. TOP INTRO SECTION VISIBILITY CONTROL</h3>
+                  <label className="toggle-switch-label" style={{ marginTop: "0.5rem" }}>
+                    <div>
+                      <span style={{ fontSize: "0.95rem" }}>SHOW TOP INTRO SECTION ON WEBSITE</span>
+                      <p style={{ margin: "0.3rem 0 0 0", color: "var(--muted)", font: "400 0.7rem DM Mono, monospace", textTransform: "none" }}>
+                        {profileDraft.showTopIntro !== false
+                          ? "✓ Active: Top Intro section with name, typing animation, and oval profile picture is visible."
+                          : "✕ Hidden: Top Intro section is hidden. The website layout will start directly with the portfolio work."}
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="toggle-switch-input"
+                      checked={profileDraft.showTopIntro !== false}
+                      onChange={e => setProfileDraft({ ...profileDraft, showTopIntro: e.target.checked })}
+                    />
+                  </label>
+                </div>
+
+                {/* 2. NAME & INTRO COPY */}
                 <div className="upload-box full">
-                  <h3>1. PROFILE PICTURE IMAGE</h3>
+                  <h3>2. INTRO TEXT & TYPING ANIMATION (LEFT SIDE)</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
+                    <label>
+                      Name
+                      <input
+                        type="text"
+                        value={profileDraft.name || "Mohammad Farhan"}
+                        onChange={e => setProfileDraft({ ...profileDraft, name: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Header Tagline (Eyebrow)
+                      <input
+                        type="text"
+                        value={profileDraft.eyebrow || "Video Editor · Graphic Designer"}
+                        onChange={e => setProfileDraft({ ...profileDraft, eyebrow: e.target.value })}
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <label style={{ marginTop: "1rem" }}>
+                    Animated Typing Roles (Comma-separated)
+                    <input
+                      type="text"
+                      placeholder="Video Editor, Motion Designer, Visual Storyteller, Graphic Designer"
+                      value={profileDraft.roles || ""}
+                      onChange={e => setProfileDraft({ ...profileDraft, roles: e.target.value })}
+                    />
+                    <small style={{ color: "var(--muted)", textTransform: "none", fontStyle: "italic", marginTop: "0.2rem" }}>
+                      These titles cycle smoothly with an animated typing effect on the left side of the hero intro section.
+                    </small>
+                  </label>
+
+                  <label style={{ marginTop: "1rem" }}>
+                    Intro Bio Paragraph
+                    <textarea
+                      rows={3}
+                      value={profileDraft.bio || ""}
+                      onChange={e => setProfileDraft({ ...profileDraft, bio: e.target.value })}
+                      required
+                    />
+                  </label>
+                </div>
+
+                {/* 3. PROFILE PICTURE IMAGE */}
+                <div className="upload-box full">
+                  <h3>3. PROFILE PICTURE IMAGE (RIGHT SIDE OVAL)</h3>
                   <label className="upload">
                     <Upload />
                     <b>{profileUploading ? "Uploading..." : profileDraft.profileUrl ? "Replace Profile Image" : "Upload Profile Image"}</b>
                     <span>JPG, PNG, WebP</span>
                     <input type="file" accept="image/*" onChange={uploadProfile} />
                   </label>
-                  
+
                   <label style={{ marginTop: "1rem" }}>
                     Image Direct URL (optional)
                     <input
@@ -505,34 +585,47 @@ export default function Admin() {
                   </label>
                 </div>
 
+                {/* 4. CLIPPING SHAPE STYLE */}
                 <div className="upload-box full">
-                  <h3>2. CLIPPING SHAPE STYLE</h3>
+                  <h3>4. PICTURE CLIPPING FRAME SHAPE</h3>
                   <div className="shape-picker-grid">
                     <button
                       type="button"
-                      className={`shape-option-btn ${profileDraft.shape === "wavy" || !profileDraft.shape ? "active" : ""}`}
+                      className={`shape-option-btn ${profileDraft.shape === "oval" || !profileDraft.shape ? "active" : ""}`}
+                      onClick={() => setProfileDraft({ ...profileDraft, shape: "oval" })}
+                    >
+                      <div className="shape-preview-icon oval-shape-icon" />
+                      <span>Oval Portal (Recommended)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`shape-option-btn ${profileDraft.shape === "wavy" ? "active" : ""}`}
                       onClick={() => setProfileDraft({ ...profileDraft, shape: "wavy" })}
                     >
                       <div className="shape-preview-icon wavy-shape-icon" />
                       <span>Wavy Organic Blob</span>
                     </button>
-
-                    <button
-                      type="button"
-                      className={`shape-option-btn ${profileDraft.shape === "oval" ? "active" : ""}`}
-                      onClick={() => setProfileDraft({ ...profileDraft, shape: "oval" })}
-                    >
-                      <div className="shape-preview-icon oval-shape-icon" />
-                      <span>Oval Portal</span>
-                    </button>
                   </div>
                 </div>
 
+                {/* LIVE PREVIEW */}
                 <div className="full live-preview-box">
-                  <h3>LIVE HERO PREVIEW</h3>
-                  <div className="admin-profile-preview-stage">
+                  <h3>LIVE INTRO PREVIEW</h3>
+                  <div className="admin-profile-preview-stage" style={{ flexDirection: "column", gap: "1.5rem", padding: "2.5rem 1.5rem" }}>
+                    <div style={{ textAlign: "center", maxWidth: "600px" }}>
+                      <p className="eyebrow">{profileDraft.eyebrow || "Video Editor · Graphic Designer"}</p>
+                      <h2 style={{ fontSize: "1.8rem", margin: "0.4rem 0" }}>
+                        Hi, I'm <span className="highlight-name">{profileDraft.name || "Mohammad Farhan"}</span>
+                      </h2>
+                      <div style={{ justifyContent: "center" }} className="hero-subtitle-typing">
+                        I'm <TypingText words={(profileDraft.roles || "Video Editor, Motion Designer").split(",").map(r => r.trim()).filter(Boolean)} />
+                      </div>
+                      <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: "0.5rem 0" }}>{profileDraft.bio}</p>
+                    </div>
+
                     {profileDraft.profileUrl ? (
-                      <div className={`hero-profile-wrapper hero-profile--${profileDraft.shape || "wavy"}`}>
+                      <div className={`hero-profile-wrapper hero-profile--${profileDraft.shape || "oval"}`}>
                         <div className="hero-profile-frame">
                           <img src={profileDraft.profileUrl} alt="Preview" />
                         </div>
@@ -542,14 +635,14 @@ export default function Admin() {
                     ) : (
                       <div className="profile-empty-preview">
                         <User size={48} />
-                        <p>No profile picture added. The hero section will display the editor silhouette fallback.</p>
+                        <p>No profile picture uploaded yet. The silhouette editor graphic will be displayed in the right oval frame.</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="editor-foot full" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-                  <button className="button primary" type="submit">Save Profile Settings</button>
+                  <button className="button primary" type="submit">Save Intro & Profile Settings</button>
                   {profileDraft.profileUrl && (
                     <button className="button secondary danger" type="button" onClick={clearProfile}>
                       Remove Profile Picture

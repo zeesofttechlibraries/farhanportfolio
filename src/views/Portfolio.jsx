@@ -10,6 +10,7 @@ import ReelModal from "../components/ReelModal";
 import LeadForm from "../components/LeadForm";
 import MeetingForm from "../components/MeetingForm";
 import BeforeAfterSlider from "../components/BeforeAfterSlider";
+import TypingText from "../components/TypingText";
 
 function Brand() {
   return (
@@ -75,12 +76,31 @@ export default function Portfolio() {
     afterUrl: "",
     afterType: "image"
   });
-  const [profile, setProfile] = useState(() => {
+  const [heroSettings, setHeroSettings] = useState(() => {
     const local = localStorage.getItem("firstcut_profile");
     if (local) {
-      try { return JSON.parse(local); } catch {}
+      try {
+        const data = JSON.parse(local);
+        return {
+          showTopIntro: data.showTopIntro !== undefined ? data.showTopIntro : true,
+          name: data.name || "Mohammad Farhan",
+          roles: data.roles || "Video Editor, Motion Designer, Visual Storyteller, Graphic Designer",
+          bio: data.bio || "Mohammad Farhan turns raw footage and bold ideas into scroll-stopping films, motion, and graphic design.",
+          eyebrow: data.eyebrow || "Video Editor · Graphic Designer",
+          profileUrl: data.profileUrl || "",
+          shape: data.shape || "oval"
+        };
+      } catch {}
     }
-    return { profileUrl: "", shape: "wavy" };
+    return {
+      showTopIntro: true,
+      name: "Mohammad Farhan",
+      roles: "Video Editor, Motion Designer, Visual Storyteller, Graphic Designer",
+      bio: "Mohammad Farhan turns raw footage and bold ideas into scroll-stopping films, motion, and graphic design.",
+      eyebrow: "Video Editor · Graphic Designer",
+      profileUrl: "",
+      shape: "oval"
+    };
   });
 
   useEffect(() => {
@@ -99,13 +119,16 @@ export default function Portfolio() {
       }
     }, () => {});
 
-    // Listen for profile picture settings
+    // Listen for profile / hero settings
     const profileRef = doc(db, "settings", "profile");
     const unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setProfile(data);
-        localStorage.setItem("firstcut_profile", JSON.stringify(data));
+        setHeroSettings(prev => {
+          const updated = { ...prev, ...data };
+          localStorage.setItem("firstcut_profile", JSON.stringify(updated));
+          return updated;
+        });
       }
     }, () => {});
 
@@ -135,6 +158,11 @@ export default function Portfolio() {
   const categories = useMemo(() => ["All", ...new Set(projects.map(p => p.category))], [projects]);
   const visible = filter === "All" ? projects : projects.filter(p => p.category === filter);
   const reelProjects = useMemo(() => projects.filter(p => isReelProject(p)), [projects, verticalVideoIds]);
+
+  const typingRolesArray = useMemo(() => {
+    if (!heroSettings.roles) return ["Video Editor", "Motion Designer", "Visual Storyteller"];
+    return heroSettings.roles.split(",").map(r => r.trim()).filter(Boolean);
+  }, [heroSettings.roles]);
 
   function openOrder(project = null) {
     setActive(project);
@@ -187,12 +215,60 @@ export default function Portfolio() {
         </button>
       </header>
 
-      <section className="hero" id="top">
+      {/* SECTION 1: TOP INTRO NAME & OVAL PROFILE BANNER (CONTROLLED FROM ADMIN SIDE) */}
+      {heroSettings.showTopIntro && (
+        <section className="hero hero-name-banner" id="top">
+          <div className="hero-grid" />
+          <div className="hero-copy">
+            <p className="eyebrow">{heroSettings.eyebrow || "Video editor · Graphic designer"}</p>
+            <h1 className="hero-name-title">MOHAMMAD<br /><em>FARHAN.</em></h1>
+
+            {/* INTRO TYPE ANIMATION ON LEFT */}
+            <div className="hero-subtitle-typing">
+              I'm <span className="highlight-name">{heroSettings.name || "Mohammad Farhan"}</span> —{" "}
+              <TypingText words={typingRolesArray} />
+            </div>
+
+            <p className="hero-text">{heroSettings.bio}</p>
+            
+            <div className="hero-actions">
+              <button className="button primary" onClick={() => openOrder()}>
+                <Play size={16} fill="currentColor" /> Start a project
+              </button>
+              <button className="button secondary" onClick={() => setMeetingOpen(true)}>
+                <CalendarDays size={17} /> Book a meeting
+              </button>
+            </div>
+          </div>
+
+          {/* OVAL PROFILE PICTURE ON RIGHT OF NAME */}
+          <div className="hero-visual">
+            {heroSettings.profileUrl ? (
+              <div className={`hero-profile-wrapper hero-profile--${heroSettings.shape || "oval"}`}>
+                <div className="hero-profile-frame">
+                  <img src={heroSettings.profileUrl} alt={heroSettings.name || "Mohammad Farhan"} />
+                </div>
+                <div className="hero-profile-glow" />
+                <div className="hero-profile-ring" />
+              </div>
+            ) : (
+              <div className="editor-silhouette">
+                <div className="head" />
+                <div className="body" />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* SECTION 2: MAIN HERO STORY SECTION */}
+      <section className="hero hero-main-story" id="intro-story">
         <div className="hero-grid" />
         <div className="hero-copy">
-          <p className="eyebrow">Video editor · Graphic designer</p>
+          <p className="eyebrow">Creative Portfolio</p>
           <h1>EVERY STORY<br />NEEDS A<br /><em>FIRST CUT.</em></h1>
           <p className="hero-text">Mohammad Farhan turns raw footage and bold ideas into scroll-stopping films, motion, and graphic design.</p>
+          
           <div className="credentials">
             <div className="experience">
               <strong>1+</strong>
@@ -205,30 +281,19 @@ export default function Portfolio() {
               <span><b>Ps</b>Photoshop</span>
             </div>
           </div>
-          <div className="hero-actions">
-            <button className="button primary" onClick={() => openOrder()}>
-              <Play size={16} fill="currentColor" /> Start a project
-            </button>
-            <button className="button secondary" onClick={() => setMeetingOpen(true)}>
-              <CalendarDays size={17} /> Book a meeting
-            </button>
-          </div>
-        </div>
-        <div className="hero-visual">
-          {profile.profileUrl ? (
-            <div className={`hero-profile-wrapper hero-profile--${profile.shape || "wavy"}`}>
-              <div className="hero-profile-frame">
-                <img src={profile.profileUrl} alt="Mohammad Farhan" />
-              </div>
-              <div className="hero-profile-glow" />
-              <div className="hero-profile-ring" />
-            </div>
-          ) : (
-            <div className="editor-silhouette">
-              <div className="head" />
-              <div className="body" />
+          {!heroSettings.showTopIntro && (
+            <div className="hero-actions">
+              <button className="button primary" onClick={() => openOrder()}>
+                <Play size={16} fill="currentColor" /> Start a project
+              </button>
+              <button className="button secondary" onClick={() => setMeetingOpen(true)}>
+                <CalendarDays size={17} /> Book a meeting
+              </button>
             </div>
           )}
+        </div>
+        
+        <div className="hero-visual">
           <div className="screen screen-one">
             <div className="screen-frame" />
             <div className="timeline-lines" />
@@ -245,6 +310,7 @@ export default function Portfolio() {
             <span /><span /><span /><span /><span />
           </div>
         </div>
+
         <div className="timeline">
           <span>00:00:00</span>
           <span>00:00:05</span>
