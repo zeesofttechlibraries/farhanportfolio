@@ -104,6 +104,12 @@ export default function Portfolio() {
   });
 
   useEffect(() => {
+    if (heroSettings.primaryColor) {
+      document.documentElement.style.setProperty("--orange", heroSettings.primaryColor);
+    }
+  }, [heroSettings.primaryColor]);
+
+  useEffect(() => {
     if (!db) return;
     const q = query(collection(db, "projects"), where("published", "==", true));
     const unsubscribeProjects = onSnapshot(q, (snap) => {
@@ -129,6 +135,9 @@ export default function Portfolio() {
           localStorage.setItem("firstcut_profile", JSON.stringify(updated));
           return updated;
         });
+        if (data.primaryColor) {
+          document.documentElement.style.setProperty("--orange", data.primaryColor);
+        }
       }
     }, () => {});
 

@@ -61,7 +61,8 @@ export default function Admin() {
     bio: "Mohammad Farhan turns raw footage and bold ideas into scroll-stopping films, motion, and graphic design.",
     eyebrow: "Video Editor · Graphic Designer",
     profileUrl: "",
-    shape: "oval"
+    shape: "oval",
+    primaryColor: "#ff6038"
   });
   const [profileUploading, setProfileUploading] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
@@ -97,6 +98,9 @@ export default function Admin() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setProfileDraft(prev => ({ ...prev, ...data }));
+        if (data.primaryColor) {
+          document.documentElement.style.setProperty("--orange", data.primaryColor);
+        }
       }
     });
 
@@ -144,28 +148,34 @@ export default function Admin() {
       try {
         const parsed = JSON.parse(local);
         setProfileDraft(prev => ({ ...prev, ...parsed }));
+        if (parsed.primaryColor) {
+          document.documentElement.style.setProperty("--orange", parsed.primaryColor);
+        }
       } catch {}
     }
   }, []);
 
   async function saveProfile(e) {
     e.preventDefault();
-    setProfileMessage("Saving profile settings…");
+    setProfileMessage("Saving profile & theme settings…");
     localStorage.setItem("firstcut_profile", JSON.stringify(profileDraft));
+    if (profileDraft.primaryColor) {
+      document.documentElement.style.setProperty("--orange", profileDraft.primaryColor);
+    }
     try {
       if (db) {
         await setDoc(doc(db, "settings", "profile"), profileDraft);
       }
-      setProfileMessage("Profile settings saved successfully!");
+      setProfileMessage("Profile & theme settings saved successfully!");
     } catch (err) {
       console.warn("Firestore profile save warning:", err);
-      setProfileMessage("Profile saved locally! Check firestore.rules for settings collection.");
+      setProfileMessage("Saved locally! Check firestore.rules for settings collection.");
     }
   }
 
   async function clearProfile() {
     setProfileMessage("Removing profile picture…");
-    const empty = { profileUrl: "", shape: profileDraft.shape || "wavy" };
+    const empty = { ...profileDraft, profileUrl: "" };
     localStorage.setItem("firstcut_profile", JSON.stringify(empty));
     setProfileDraft(empty);
     try {
@@ -606,6 +616,67 @@ export default function Admin() {
                       <div className="shape-preview-icon wavy-shape-icon" />
                       <span>Wavy Organic Blob</span>
                     </button>
+                  </div>
+                </div>
+
+                {/* 5. WEBSITE PRIMARY COLOR */}
+                <div className="upload-box full">
+                  <h3>5. WEBSITE PRIMARY BRAND ACCENT COLOR</h3>
+                  <p style={{ margin: "0.4rem 0 1rem", color: "var(--muted)", font: "400 0.75rem DM Mono, monospace", textTransform: "none" }}>
+                    Choose the primary color for buttons, highlights, glowing rings, play buttons, and brand accents.
+                  </p>
+                  <div className="color-preset-picker">
+                    {[
+                      { name: "Electric Flame (Default)", hex: "#ff6038" },
+                      { name: "Neon Lime", hex: "#10b981" },
+                      { name: "Cyber Cyan", hex: "#06b6d4" },
+                      { name: "Vibrant Violet", hex: "#8b5cf6" },
+                      { name: "Hot Pink", hex: "#ec4899" },
+                      { name: "Solar Amber", hex: "#f59e0b" },
+                      { name: "Crimson Red", hex: "#ef4444" }
+                    ].map(preset => (
+                      <button
+                        key={preset.hex}
+                        type="button"
+                        className={`color-preset-btn ${profileDraft.primaryColor === preset.hex ? "active" : ""}`}
+                        onClick={() => {
+                          setProfileDraft({ ...profileDraft, primaryColor: preset.hex });
+                          document.documentElement.style.setProperty("--orange", preset.hex);
+                        }}
+                      >
+                        <span className="color-swatch-circle" style={{ background: preset.hex }} />
+                        <span>{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="custom-color-input-wrapper" style={{ marginTop: "1.2rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.8rem", cursor: "pointer", width: "auto" }}>
+                      <span style={{ fontSize: "0.8rem" }}>Custom Color Picker:</span>
+                      <input
+                        type="color"
+                        value={profileDraft.primaryColor || "#ff6038"}
+                        onChange={e => {
+                          const hex = e.target.value;
+                          setProfileDraft({ ...profileDraft, primaryColor: hex });
+                          document.documentElement.style.setProperty("--orange", hex);
+                        }}
+                        style={{ width: "45px", height: "45px", padding: "2px", border: "1px solid var(--line)", background: "none", cursor: "pointer", borderRadius: "6px" }}
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      value={profileDraft.primaryColor || "#ff6038"}
+                      onChange={e => {
+                        const hex = e.target.value;
+                        setProfileDraft({ ...profileDraft, primaryColor: hex });
+                        if (/^#[0-9A-F]{6}$/i.test(hex)) {
+                          document.documentElement.style.setProperty("--orange", hex);
+                        }
+                      }}
+                      placeholder="#ff6038"
+                      style={{ width: "130px", fontFamily: "DM Mono, monospace", fontSize: "0.85rem", textTransform: "lowercase" }}
+                    />
                   </div>
                 </div>
 
